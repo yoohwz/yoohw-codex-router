@@ -58,6 +58,11 @@ class AOAAdapter(Adapter):
         effort = effort.upper()
         if model not in catalog or effort not in _VALID_EFFORTS:
             raise PolicyError(f"PROFILE_REQUIRED: unqualified {source} profile {model} / {effort}")
+        declared_tier = fields.get("Tier")
+        if declared_tier and declared_tier != catalog[model]:
+            raise PolicyError(
+                f"PROFILE_REQUIRED: {source} tier {declared_tier} contradicts qualified {catalog[model]} for {model}"
+            )
         return Profile(model, effort)
 
     @staticmethod
@@ -96,6 +101,7 @@ class AOAAdapter(Adapter):
                 launchable=True,
                 profile=SOL_HIGH,
                 reasons=["AOA independent review requires DEEP/HIGH or expressly approved XHIGH."],
+                warnings=["--review advises compute only; it does not create or prove AOA review authority."],
                 review_floor=SOL_HIGH,
             )
 
@@ -123,6 +129,10 @@ class AOAAdapter(Adapter):
             )
 
         explicit = self._profile(launch, catalog, "Codex launch contract")
+        baseline_fields = subsection_fields(task_text, "Codex execution policy", "Baseline")
+        baseline = self._profile(baseline_fields, catalog, "Baseline")
+        if explicit and baseline and baseline != explicit:
+            raise PolicyError("PROFILE_REQUIRED: AOA Baseline contradicts the Codex launch contract")
         workflow_mode = launch.get("Workflow mode", "").upper()
         if workflow_mode == "DISCOVERY_ONLY":
             phase = "DISCOVERY"

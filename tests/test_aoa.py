@@ -10,7 +10,12 @@ POLICY = '''MODELS = (\n    ("gpt-5.6-luna", "ECONOMY", True, True, tuple(), 1),
 
 
 def task(model="gpt-5.6-terra", effort="MEDIUM", lane="STANDARD_AOA", status="IMPLEMENTING"):
-    return f"""# AOA task\n\nStatus: {status}\nExecution lane: {lane}\n\n## Codex launch contract\n\nModel: {model}\nReasoning effort: {effort}\nProfile source: BASELINE\nIntent: RUN\nWorkflow mode: IMPLEMENTATION\n\n## Codex execution policy\n\n### Baseline\n\nTier: STANDARD\nModel: {model}\nReasoning effort: {effort}\n\n### Escalation\n\nTier: DEEP\nModel: gpt-5.6-sol\nReasoning effort: HIGH\nTriggers:\n- architecture becomes unresolved\n- public contract changes\n\n### Downgrade\n\nTier: ECONOMY\nModel: gpt-5.6-luna\nReasoning effort: LOW\nAllowed when:\n- only mechanical evidence remains\n"""
+    tier = {
+        "gpt-5.6-luna": "ECONOMY",
+        "gpt-5.6-terra": "STANDARD",
+        "gpt-5.6-sol": "DEEP",
+    }.get(model, "DEEP")
+    return f"""# AOA task\n\nStatus: {status}\nExecution lane: {lane}\n\n## Codex launch contract\n\nModel: {model}\nReasoning effort: {effort}\nProfile source: BASELINE\nIntent: RUN\nWorkflow mode: IMPLEMENTATION\n\n## Codex execution policy\n\n### Baseline\n\nTier: {tier}\nModel: {model}\nReasoning effort: {effort}\n\n### Escalation\n\nTier: DEEP\nModel: gpt-5.6-sol\nReasoning effort: HIGH\nTriggers:\n- architecture becomes unresolved\n- public contract changes\n\n### Downgrade\n\nTier: ECONOMY\nModel: gpt-5.6-luna\nReasoning effort: LOW\nAllowed when:\n- only mechanical evidence remains\n"""
 
 
 class AOAAdapterTests(unittest.TestCase):
@@ -61,6 +66,14 @@ class AOAAdapterTests(unittest.TestCase):
                 task(model="gpt-future", effort="HIGH", lane="DEEP_AOA"),
                 False,
             )
+
+    def test_baseline_must_match_launch_contract(self):
+        text = task().replace(
+            "### Baseline\n\nTier: STANDARD\nModel: gpt-5.6-terra\nReasoning effort: MEDIUM",
+            "### Baseline\n\nTier: DEEP\nModel: gpt-5.6-sol\nReasoning effort: HIGH",
+        )
+        with self.assertRaises(PolicyError):
+            self.adapter.route(self.root, "AOA-0010", text, False)
 
 
 if __name__ == "__main__":

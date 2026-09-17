@@ -51,8 +51,11 @@ class BlacklistManagerAdapter(Adapter):
         return policy
 
     def route(self, repo_root: Path, task_id: str, task_text: str, review: bool) -> Recommendation:
-        policy_path = self._verify_policy(repo_root)
+        self._verify_policy(repo_root)
         fields = top_level_fields(task_text)
+        declared_task = fields.get("Task-ID")
+        if declared_task and declared_task != task_id:
+            raise TaskError(f"TASK_METADATA_REQUIRED: Task-ID {declared_task!r} != requested {task_id!r}")
         lane = fields.get("Lane")
         status = fields.get("Status")
         if lane not in {"STANDARD_BM", "DEEP_BM"}:

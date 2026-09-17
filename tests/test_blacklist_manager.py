@@ -71,6 +71,10 @@ class BlacklistManagerAdapterTests(unittest.TestCase):
         with self.assertRaises(PolicyError):
             self.adapter.route(self.root, "BM-0152", task("STANDARD_BM", "READY"), False)
 
+    def test_task_id_mismatch_fails_closed(self):
+        with self.assertRaises(TaskError):
+            self.adapter.route(self.root, "BM-9999", task("STANDARD_BM", "READY"), False)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -44,14 +44,19 @@ def normalize_origin(value: str) -> str:
 def discover_repo(path: str | Path) -> RepoContext:
     requested = Path(path).expanduser().resolve()
     try:
-        root = Path(_run_git(requested, "rev-parse", "--show-toplevel")).resolve()
-        origin = normalize_origin(_run_git(root, "remote", "get-url", "origin"))
-        branch = _run_git(root, "symbolic-ref", "--short", "-q", "HEAD") or None
+        root_text = _run_git(requested, "rev-parse", "--show-toplevel")
     except RepositoryError:
         # Useful for fixtures and source archives. Production use should normally be a Git checkout.
-        root = requested
-        origin = f"local/{root.name}"
-        branch = None
+        return RepoContext(root=requested, repository=f"local/{requested.name}", branch=None)
+
+    root = Path(root_text).resolve()
+    # Once Git identity is observable, origin errors are authority errors and must not
+    # silently fall back to a convenient directory name.
+    origin = normalize_origin(_run_git(root, "remote", "get-url", "origin"))
+    try:
+        branch = _run_git(root, "symbolic-ref", "--short", "-q", "HEAD") or None
+    except RepositoryError:
+        branch = None  # Detached HEAD is valid for explicit task routing.
     return RepoContext(root=root, repository=origin, branch=branch)
 
 

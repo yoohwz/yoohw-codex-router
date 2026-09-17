@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yoohw-codex-router"
+version = "0.1.0"
+description = "Read-only Codex model and reasoning-effort advisor for YoOhw repositories"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+yoohw-profile = "yoohw_codex_router.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

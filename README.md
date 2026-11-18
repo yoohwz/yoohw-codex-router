@@ -53,7 +53,7 @@ Or from anywhere:
 yoohw-profile BM-0152 --repo ~/Herd/wc-blacklist-manager
 ```
 
-The task ID may be omitted when the current branch is recognizable, for example `bm-0152-*` or `aoa-0023-*`:
+The task ID may be omitted when the current branch is recognizable, for example `bm-0152-*` or `aoa-269-*`:
 
 ```sh
 yoohw-profile
@@ -69,7 +69,7 @@ Compact output for quick operator use:
 
 ```sh
 yoohw-profile BM-0152 --compact
-# gpt-5.6-terra / MEDIUM
+# gpt-6.2-sol / MEDIUM
 ```
 
 Structured output:
@@ -91,21 +91,21 @@ Authority: BM canonical compute policy + lane/status
 
 ----------------------------------------
 SELECT IN CODEX APP
-Model:  gpt-5.6-terra
+Model:  gpt-6.2-sol
 Effort: MEDIUM
 ----------------------------------------
 
 Why
-- Deep implementation may downgrade to Terra/MEDIUM after the architecture/boundary is settled.
+- Deep implementation may downgrade to Sol/MEDIUM after the architecture/boundary is settled.
 
-Escalation target: gpt-5.6-sol / HIGH
+Escalation target: gpt-6.2-sol / HIGH
 
 Escalate when
 - security/auth/payment/licensing/privacy/persistence/concurrency semantics become unresolved
 - a compatibility-sensitive shared contract or architecture boundary becomes ambiguous
 - the approved implementation boundary no longer fits repository evidence
 
-Independent review floor: gpt-5.6-sol / HIGH
+Independent review floor: gpt-6.2-sol / HIGH
 ```
 
 ## Blacklist Manager policy source
@@ -120,9 +120,15 @@ The router deliberately does not invoke `run-bm.sh --dry-run`: that launcher per
 
 ## AOA policy source
 
-AOA's qualified model registry is `docs/codex/aoa_compute_policy.py`. The router validates the qualified Luna/Terra/Sol tiers and then honors the task's explicit `## Codex launch contract` when present.
+The router reads AOA's current `docs/workflow.md` compute table. It recommends Sol/MEDIUM for implementation or correction and Sol/HIGH for optional complex discovery and independent Controlled review.
 
-Task-specific `Escalation` and `Downgrade` blocks are shown as guidance. They are not auto-selected without their repository-defined conditions being satisfied.
+AOA tasks are GitHub Issues. For offline advice, pass a local Markdown snapshot of the admitted Issue inside the target checkout. Include the risk lane and current execution status (for example, `Risk lane: Controlled` and `Status: IMPLEMENTING`). The snapshot is advisory input and should be checked against the Issue and PR. For example:
+
+```sh
+yoohw-profile AOA-269 --repo ~/Herd/wc-advanced-order-actions --task-file local-aoa-269.md
+```
+
+Pass `--review` to request review compute or include a `Codex launch contract` with `Workflow mode: DISCOVERY_ONLY` for an authorized complex discovery run. During rollout, the advisor follows the verified 6.1 or 6.2 Sol mapping actually present in each checkout.
 
 ## Development
 

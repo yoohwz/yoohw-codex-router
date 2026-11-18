@@ -10,6 +10,7 @@ class RepoTests(unittest.TestCase):
     def test_task_inference(self):
         self.assertEqual(infer_task_from_branch("bm-0152-blocked-auth"), "BM-0152")
         self.assertEqual(infer_task_from_branch("feature/aoa-0023-kernel"), "AOA-0023")
+        self.assertEqual(infer_task_from_branch("aoa-269-gpt-6-2-models"), "AOA-269")
         self.assertIsNone(infer_task_from_branch("main"))
 
 

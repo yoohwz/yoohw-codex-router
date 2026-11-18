@@ -3,77 +3,102 @@ import unittest
 from pathlib import Path
 
 from yoohw_codex_router.adapters.aoa import AOAAdapter
-from yoohw_codex_router.errors import PolicyError
+from yoohw_codex_router.errors import PolicyError, TaskError
 
 
-POLICY = '''MODELS = (\n    ("gpt-5.6-luna", "ECONOMY", True, True, tuple(), 1),\n    ("gpt-5.6-terra", "STANDARD", True, True, tuple(), 2),\n    ("gpt-5.6-sol", "DEEP", True, True, tuple(), 3),\n)\n'''
+WORKFLOW = """# AOA workflow
+
+## Compute and delegation
+
+| Phase | Default compute |
+| --- | --- |
+| Root orchestration | GPT-6.2 Sol / MEDIUM |
+| Fast implementation | GPT-6.2 Sol / MEDIUM |
+| Controlled deterministic implementation after boundary settlement | GPT-6.2 Sol / MEDIUM |
+| In-scope correction of current findings | GPT-6.2 Sol / MEDIUM |
+| Optional read-only support subagent | GPT-6.2 Sol / MEDIUM |
+| Optional complex technical discovery | GPT-6.2 Sol / HIGH when justified |
+| Fresh independent Controlled Technical Review or re-review | GPT-6.2 Sol / HIGH |
+"""
 
 
-def task(model="gpt-5.6-terra", effort="MEDIUM", lane="STANDARD_AOA", status="IMPLEMENTING"):
-    tier = {
-        "gpt-5.6-luna": "ECONOMY",
-        "gpt-5.6-terra": "STANDARD",
-        "gpt-5.6-sol": "DEEP",
-    }.get(model, "DEEP")
-    return f"""# AOA task\n\nStatus: {status}\nExecution lane: {lane}\n\n## Codex launch contract\n\nModel: {model}\nReasoning effort: {effort}\nProfile source: BASELINE\nIntent: RUN\nWorkflow mode: IMPLEMENTATION\n\n## Codex execution policy\n\n### Baseline\n\nTier: {tier}\nModel: {model}\nReasoning effort: {effort}\n\n### Escalation\n\nTier: DEEP\nModel: gpt-5.6-sol\nReasoning effort: HIGH\nTriggers:\n- architecture becomes unresolved\n- public contract changes\n\n### Downgrade\n\nTier: ECONOMY\nModel: gpt-5.6-luna\nReasoning effort: LOW\nAllowed when:\n- only mechanical evidence remains\n"""
+def task(lane="Controlled", status="IMPLEMENTING", extra=""):
+    return f"# AOA Issue 269\n\nTask-ID: AOA-269\nRisk lane: {lane}\nStatus: {status}\n{extra}"
+
+
+def launch(model="gpt-6.2-sol", effort="HIGH", mode="DISCOVERY_ONLY", reason=""):
+    return (
+        f"\n## Codex launch contract\n\nModel: {model}\nReasoning effort: {effort}\n"
+        f"Workflow mode: {mode}\n{reason}"
+    )
 
 
 class AOAAdapterTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "wc-advanced-order-actions"
-        (self.root / "docs" / "codex").mkdir(parents=True)
-        (self.root / "docs" / "codex" / "aoa_compute_policy.py").write_text(POLICY)
+        (self.root / "docs").mkdir(parents=True)
+        self.policy = self.root / "docs" / "workflow.md"
+        self.policy.write_text(WORKFLOW)
         self.adapter = AOAAdapter()
 
-    def tearDown(self):
-        self.temp.cleanup()
+    def route(self, text, review=False):
+        return self.adapter.route(self.root, "AOA-269", text, review)
 
-    def test_explicit_launch_contract_wins(self):
-        rec = self.adapter.route(self.root, "AOA-0010", task(), False)
-        self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-5.6-terra", "MEDIUM"))
-        self.assertEqual(rec.authority_source, "task Codex launch contract")
-        self.assertEqual(rec.escalation.model, "gpt-5.6-sol")
-        self.assertEqual(rec.downgrade.model, "gpt-5.6-luna")
-        self.assertIn("architecture becomes unresolved", rec.escalate_when)
+    def test_implementation_and_correction_are_sol_medium(self):
+        for lane, status, phase in (
+            ("Fast", "READY", "IMPLEMENTATION"),
+            ("Controlled", "IMPLEMENTING", "IMPLEMENTATION"),
+            ("Controlled", "TECHNICAL_CHANGES_REQUIRED", "CORRECTION"),
+        ):
+            with self.subTest(lane=lane, status=status):
+                rec = self.route(task(lane, status))
+                self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-6.2-sol", "MEDIUM"))
+                self.assertEqual(rec.phase, phase)
+                self.assertEqual(rec.escalation.effort, "HIGH")
 
-    def test_deep_explicit_sol_high_is_preserved(self):
-        rec = self.adapter.route(
-            self.root,
-            "AOA-0023",
-            task(model="gpt-5.6-sol", effort="HIGH", lane="DEEP_AOA"),
-            False,
-        )
-        self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-5.6-sol", "HIGH"))
+    def test_explicit_discovery_is_sol_high_and_downgrades_to_medium(self):
+        rec = self.route(task(extra=launch()))
+        self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-6.2-sol", "HIGH"))
+        self.assertEqual(rec.phase, "DISCOVERY")
+        self.assertEqual(rec.downgrade.effort, "MEDIUM")
 
-    def test_review_floor_is_sol_high(self):
-        rec = self.adapter.route(self.root, "AOA-0023", task(lane="DEEP_AOA"), True)
-        self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-5.6-sol", "HIGH"))
+    def test_review_floor_is_sol_high_even_with_an_implementation_contract(self):
+        rec = self.route(task(extra=launch(effort="MEDIUM", mode="IMPLEMENTATION")), review=True)
+        self.assertEqual((rec.profile.model, rec.profile.effort), ("gpt-6.2-sol", "HIGH"))
         self.assertEqual(rec.phase, "REVIEW")
 
-    def test_human_gate_has_no_codex_action(self):
-        rec = self.adapter.route(
-            self.root, "AOA-0010", task(status="READY_FOR_HUMAN_GATE"), False
-        )
+    def test_human_hold_has_no_codex_action_even_with_review_flag(self):
+        rec = self.route(task(status="HUMAN_PAUSED"), review=True)
         self.assertFalse(rec.launchable)
         self.assertIsNone(rec.profile)
 
-    def test_unknown_model_fails_closed(self):
-        with self.assertRaises(PolicyError):
-            self.adapter.route(
-                self.root,
-                "AOA-9999",
-                task(model="gpt-future", effort="HIGH", lane="DEEP_AOA"),
-                False,
-            )
+    def test_unknown_model_or_unjustified_xhigh_fails_closed(self):
+        for profile in (launch(model="gpt-6.2-astra"), launch(effort="XHIGH")):
+            with self.subTest(profile=profile), self.assertRaises(PolicyError):
+                self.route(task(extra=profile))
+
+    def test_explicit_reason_preserves_exceptional_xhigh(self):
+        rec = self.route(task(extra=launch(effort="XHIGH", reason="Escalation reason: unresolved recovery invariant")))
+        self.assertEqual(rec.profile.effort, "XHIGH")
 
     def test_baseline_must_match_launch_contract(self):
-        text = task().replace(
-            "### Baseline\n\nTier: STANDARD\nModel: gpt-5.6-terra\nReasoning effort: MEDIUM",
-            "### Baseline\n\nTier: DEEP\nModel: gpt-5.6-sol\nReasoning effort: HIGH",
-        )
+        baseline = "\n## Codex execution policy\n\n### Baseline\n\nModel: gpt-6.2-sol\nReasoning effort: MEDIUM\n"
         with self.assertRaises(PolicyError):
-            self.adapter.route(self.root, "AOA-0010", text, False)
+            self.route(task(extra=launch() + baseline))
+
+    def test_previous_accepted_policy_and_mixed_policy(self):
+        self.policy.write_text(WORKFLOW.replace("GPT-6.2 Sol", "GPT-6.1 Sol"))
+        self.assertEqual(self.route(task()).profile.model, "gpt-6.1-sol")
+        self.policy.write_text(WORKFLOW.replace("GPT-6.2 Sol", "GPT-6.1 Sol", 1))
+        with self.assertRaises(PolicyError):
+            self.route(task())
+
+    def test_unresolved_task_metadata_fails_closed(self):
+        for text in (task(lane="DEEP_AOA"), task(status="UNKNOWN"), task().replace("AOA-269", "AOA-270")):
+            with self.subTest(text=text), self.assertRaises(TaskError):
+                self.route(text)
 
 
 if __name__ == "__main__":

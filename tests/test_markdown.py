@@ -10,9 +10,9 @@ class MarkdownTests(unittest.TestCase):
         self.assertEqual(top_level_fields(text)["Status"], "READY")
 
     def test_section_fields_are_exact(self):
-        text = "## Codex launch contract\nModel: gpt-5.6-sol\nReasoning effort: HIGH\n\n## Other\nModel: no\n"
+        text = "## Codex launch contract\nModel: gpt-6.2-sol\nReasoning effort: HIGH\n\n## Other\nModel: no\n"
         fields = section_fields(text, "Codex launch contract")
-        self.assertEqual(fields["Model"], "gpt-5.6-sol")
+        self.assertEqual(fields["Model"], "gpt-6.2-sol")
 
     def test_duplicate_field_fails_closed(self):
         with self.assertRaises(TaskError):

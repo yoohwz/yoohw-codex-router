@@ -63,7 +63,7 @@ def discover_repo(path: str | Path) -> RepoContext:
 def infer_task_from_branch(branch: str | None) -> str | None:
     if not branch:
         return None
-    match = re.search(r"(?:^|/)(bm|aoa)-([0-9]{4})(?:-|$)", branch, re.I)
+    match = re.search(r"(?:^|/)(bm-[0-9]{4}|aoa-[0-9]+)(?:-|$)", branch, re.I)
     if not match:
         return None
-    return f"{match.group(1).upper()}-{match.group(2)}"
+    return match.group(1).upper()

@@ -85,28 +85,6 @@ def subsection_fields(text: str, parent: str, heading: str) -> dict[str, str]:
     return unique_fields(body) if body is not None else {}
 
 
-def bullets_after_label(body: str | None, label: str) -> list[str]:
-    if not body:
-        return []
-    lines = body.splitlines()
-    result: list[str] = []
-    active = False
-    prefix = f"{label}:"
-    for line in lines:
-        stripped = line.strip()
-        if stripped == prefix:
-            active = True
-            continue
-        if active:
-            if stripped.startswith("- "):
-                result.append(stripped[2:].strip())
-                continue
-            if not stripped:
-                continue
-            break
-    return result
-
-
 def find_task_file(repo_root: Path, task_id: str) -> Path:
     task_dir = repo_root / "docs" / "tasks"
     matches = sorted(path for path in task_dir.glob(f"{task_id}-*.md") if path.is_file())

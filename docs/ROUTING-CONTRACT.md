@@ -22,40 +22,27 @@ Heuristics do not override canonical task or repository authority. v0.1 intentio
 - **Unresolved judgment selects reasoning effort.**
 - **Workflow phase determines when compute can downgrade or must upgrade again.**
 
-The normal phase pattern is:
-
-```text
-Deep Discovery / Architecture -> Sol / HIGH
-Settled deterministic implementation -> Terra / MEDIUM
-Mechanical evidence/documentation -> Luna / LOW when repository authority permits
-Independent Deep review -> Sol / HIGH
-```
-
-This pattern is not itself authority. Repository/task policy may deliberately keep a stronger profile, and that explicit profile wins.
+BM and AOA both use Sol/MEDIUM for ordinary implementation and correction, and Sol/HIGH for repository-defined complex discovery and independent review. The adapter verifies each repository's phase table, selecting 6.1 or 6.2 Sol according to the checked-out policy. A missing row, mixed model family or different effort fails closed. Astra remains an exception handled under the target workflow's existing authority.
 
 ## Blacklist Manager adapter
 
-The adapter verifies the canonical `docs/CODEX-EXECUTION-PROFILES.md` markers before routing. It never invokes `run-bm.sh`, because the canonical launcher performs Git fetch/ref/worktree validation even in dry-run mode.
+The adapter reads `docs/CODEX-EXECUTION-PROFILES.md` from Core. It never invokes `run-bm.sh`, because the launcher performs Git fetch/ref/worktree validation even in dry-run mode.
 
-Current mapping:
-
-| Authority | Profile |
+| Authority | Effort |
 | --- | --- |
-| `STANDARD_BM` Run | GPT-5.6 Terra / MEDIUM |
-| `DEEP_BM` + `READY` Discovery/Architecture | GPT-5.6 Sol / HIGH |
-| `DEEP_BM` + `IMPLEMENTING`/legacy `CHANGES_REQUIRED` | GPT-5.6 Terra / MEDIUM |
-| `TECHNICAL_REVIEW_REQUIRED` / explicit review | GPT-5.6 Sol / HIGH |
-| ChatGPT/Human gates | No Codex action |
+| `STANDARD_BM` Run | MEDIUM |
+| `DEEP_BM` + `READY` Discovery/Architecture | HIGH |
+| `DEEP_BM` + `IMPLEMENTING`/legacy `CHANGES_REQUIRED` | MEDIUM |
+| `TECHNICAL_REVIEW_REQUIRED` / explicit review | HIGH |
+| Current Human or applicable historical ChatGPT gate | No Codex action |
 
 For Premium/Global task authority, the adapter resolves Core policy locally through `BM_CORE_DIR` or a sibling `wc-blacklist-manager` checkout. It does not use network discovery.
 
 ## Advanced Order Actions adapter
 
-AOA owns its qualified model registry in `docs/codex/aoa_compute_policy.py`. The adapter validates the currently qualified Luna/Terra/Sol tier mapping before routing.
+The adapter reads the **Compute and delegation** table in `docs/workflow.md`. A local task snapshot represents the admitted GitHub Issue and current status and follows the `Fast` or `Controlled` lanes. The router uses an explicit, policy-compatible `Codex launch contract` when supplied. A discovery-only profile uses at least HIGH, and an explicit XHIGH profile requires a specific unresolved technical reason. Legacy task snapshots with an obsolete lane or incompatible profile require the operator to consult the task's admitted workflow.
 
-An explicit `## Codex launch contract` is authoritative and wins over global defaults. `Baseline`, `Escalation`, and `Downgrade` blocks are presented as operator guidance but are not auto-selected; their conditions must be observed by the operator/workflow before switching profiles.
-
-Independent AOA review has a DEEP/HIGH floor. XHIGH remains exceptional and must be explicitly approved by AOA authority.
+An explicit review recommendation or `TECHNICAL_REVIEW_REQUIRED` uses Sol/HIGH. The advisor provides compute guidance only. Issue/PR authority, fresh isolated reviewer context, exact candidate binding, and Ready and CI rules stay with the actual AOA workflow. A task on a recorded non-execution hold returns no action, including with `--review`.
 
 ## Read-only boundary
 
@@ -76,7 +63,7 @@ Return an error instead of a recommendation when:
 - the task file is missing or ambiguous;
 - required task fields are missing/duplicated;
 - canonical compute policy is missing or no longer matches the adapter's verified contract;
-- an AOA task requests an unqualified model/effort pair;
+- an AOA task requests a profile outside the verified policy or omits its current lane/status;
 - review is requested from an invalid BM review state.
 
 A non-Codex Human/ChatGPT gate is not an error; the router returns `NO_CODEX_ACTION`.
